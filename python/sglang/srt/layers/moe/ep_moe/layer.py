@@ -349,6 +349,8 @@ class DeepEPMoE(FusedMoE):
         )
 
 
+# 工厂函数，根据条件选择MoE后端的具体实现类是什么
+# DeepEPMoE依赖于all_to_all通信，否则选用FusedMoE实现
 def get_moe_impl_class(quant_config: Optional[QuantizationConfig]):
     # [TODO] kk, temporary solution
     if (

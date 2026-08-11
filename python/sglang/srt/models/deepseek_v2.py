@@ -573,6 +573,7 @@ class DeepseekV2MoE(nn.Module):
         )
         _fusion_disabled = get_exec().moe.disable_shared_experts_fusion
 
+        # shared experts融合进
         # num_fused_shared_experts drives weight remapping in deepseek_weight_loader:
         # mlp.shared_experts → mlp.experts.256 when > 0.
         self.num_fused_shared_experts = 0 if _fusion_disabled else n_shared_experts
@@ -615,6 +616,7 @@ class DeepseekV2MoE(nn.Module):
                 "Only silu is supported for now."
             )
 
+        # Gate: 给每个token与每个Expert之间计算分数
         self.gate = MoEGate(
             config=config,
             quant_config=quant_config,
@@ -626,6 +628,7 @@ class DeepseekV2MoE(nn.Module):
             mla_enable_prefill_cp=mla_enable_prefill_cp,
         )
 
+        # Fused shared experts: EP场景下，每个EP rank上都有shared experts，会重复计算。在结果上需要除以缩放系数进行恢复
         # scaling factor for fused shared experts on AMD-platform.
         # DeepEP/MegaMOE doesn't need this: shared expert is only computed on home rank
         # (not all-reduced), so no 1/ep_size correction is needed.

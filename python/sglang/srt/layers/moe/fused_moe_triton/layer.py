@@ -203,6 +203,7 @@ def _validate_hpc_ops_quant_method(quant_method) -> None:
         )
 
 
+# MoE的统一入口
 class FusedMoE(torch.nn.Module):
     """FusedMoE layer for MoE models.
 
@@ -1442,6 +1443,7 @@ class FusedMoE(torch.nn.Module):
                 hidden_states, topk_output, pre_quant_input=pre_quant_input
             )
 
+    # 计算方式
     def forward_impl(
         self,
         hidden_states: torch.Tensor,
@@ -1455,6 +1457,7 @@ class FusedMoE(torch.nn.Module):
             dwdp_mgr = get_global_dwdp_manager()
             dwdp_mgr.wait_prefetch(self.layer_id)
 
+        # 将token按照topk选择， 发送到对应的专家
         dispatch_output = self.dispatcher.dispatch(
             hidden_states=hidden_states, topk_output=topk_output
         )
@@ -1471,6 +1474,7 @@ class FusedMoE(torch.nn.Module):
                 hidden_states_pre_quant=pre_quant_input
             )
 
+        # 计算MoE
         combine_input = self.run_moe_core(
             dispatch_output=dispatch_output,
         )
@@ -1478,6 +1482,7 @@ class FusedMoE(torch.nn.Module):
         if self._dwdp_bound:
             dwdp_mgr.record_compute_and_prefetch_next(self.layer_id)
 
+        # combine结果
         with use_symmetric_memory(
             get_tp_group(), disabled=not is_allocation_symmetric()
         ):
