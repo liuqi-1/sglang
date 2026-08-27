@@ -1667,12 +1667,15 @@ class KvBufferDesc:
         return (page_size // self.tokens_per_row) * self.row_bytes
 
 
+# 抽象基类，定义GPU上KV Cache存储池的统一接口和公共属性
+# 本身不直接存储数据，但是规定了所有的KV池子必须具备的【形状和行为】
+# TODO 梳理这个类
 class KVCache(abc.ABC):
-    layer_shard_enabled: bool = False
-    post_capture_active: bool = False
+    layer_shard_enabled: bool = False # 层是否分片（PP场景
+    post_capture_active: bool = False # CUDA graph捕获后VA预留模式
     # Whether get_cpu_copy/load_cpu_copy carry the recurrent state. False when the
     # state lives on the request pool instead, and the caller has to move it.
-    cpu_copy_carries_mamba: bool = False
+    cpu_copy_carries_mamba: bool = False # CPU拷贝是否携带recurrent state（mamba模型）
 
     @abc.abstractmethod
     def __init__(
@@ -1800,7 +1803,7 @@ class KVCache(abc.ABC):
     def maybe_get_custom_mem_pool(self):
         return self.custom_mem_pool
 
-
+# 实际存储KV_cache的数据结构（根据physical_idx读取到实际的KV值
 class MHATokenToKVPool(KVCache):
     def __init__(
         self,
@@ -1825,8 +1828,8 @@ class MHATokenToKVPool(KVCache):
         post_capture_active: bool = False,
         allocation_label: Optional[str] = None,
     ):
-        self.k_buffer = None
-        self.v_buffer = None
+        self.k_buffer = None # 全局的K Buffer
+        self.v_buffer = None # 全局的V Buffer
         if post_capture_active:
             # Reserved upper bound only (unbacked VA): page-align UP so
             # (size + page_size) % page_size == 0 holds for paged layouts.

@@ -860,6 +860,7 @@ class HiRadixCache(RadixCache):
             logger.warning("Hierarchical cache storage backend is not enabled.")
             return False
 
+    # device->host: L1->L2写KV Cache
     def write_backup(self, node: TreeNode, write_back=False) -> int:
         # Backup invariant (for write-through mode): backed-up nodes must form a
         # contiguous prefix from root — no gaps.  Skip if parent isn't backed
@@ -936,6 +937,7 @@ class HiRadixCache(RadixCache):
         if release_lock:
             self.dec_lock_ref(lock_node)
 
+    # host->storage的写回（L2向L3写回）
     def write_backup_storage(self, node: TreeNode, backup_len: Optional[int] = None):
         # Recover pre-split data via walk-and-concat if node was split.
         # prefix_keys anchored at chain top to avoid double-counting.
@@ -1359,6 +1361,7 @@ class HiRadixCache(RadixCache):
             )
         return freed_device
 
+    # 驱逐KV Cache
     def evict_host(self, num_tokens: int):
         leaves = list(self.evictable_host_leaves)
         eviction_heap = [
@@ -1394,6 +1397,7 @@ class HiRadixCache(RadixCache):
                 new_priority = self.eviction_strategy.get_priority(x.parent)
                 heapq.heappush(eviction_heap, (new_priority, x.parent))
 
+    # L1从L2读取KV Cache
     def load_back(
         self, node: TreeNode, mem_quota: Optional[int] = None
     ) -> Optional[torch.Tensor]:
@@ -1467,6 +1471,7 @@ class HiRadixCache(RadixCache):
 
         return device_indices
 
+    # L2向L1加载数据（init
     def init_load_back(
         self,
         params: InitLoadBackParams,
@@ -1733,6 +1738,7 @@ class HiRadixCache(RadixCache):
         """
         return self.prefetch_loaded_tokens_by_reqid.pop(req_id, 0)
 
+    # 在本地L1/L2进行前缀匹配
     def match_prefix(self, params: MatchPrefixParams):
         if self.disable:
             return self._empty_match_result
@@ -1766,6 +1772,7 @@ class HiRadixCache(RadixCache):
             host_hit_length=host_hit_length,
         )
 
+    # 匹配不到本地后，向L3预取
     def prefetch_from_storage(
         self,
         req_id: str,
